@@ -69,11 +69,13 @@
     "edge": "#c9762b"
   },
   "miniSprite": [
-    ".e.",
-    "yyy",
-    "yYy",
-    "yyy",
-    ".e."
+    ".HHH.",
+    "HHHHH",
+    "HgfgH",
+    ".fff.",
+    "wwwww",
+    "wwwww",
+    ".M.M."
   ],
   "props": {
     "idle": [

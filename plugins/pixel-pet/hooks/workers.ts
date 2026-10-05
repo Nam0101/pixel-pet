@@ -1,4 +1,4 @@
-import { BODY_W, HEIGHT, MAX_MINIS, MINI_SIZE, drawMini, stamp } from './pixels'
+import { BODY_W, HEIGHT, MAX_MINIS, drawMini, stamp } from './pixels'
 import type { Body, Canvas, MiniView } from './pixels'
 
 /**
@@ -13,13 +13,15 @@ const THROW_H = 9 // pixels, at the top of the arc
 const TYPE_MS = 160 // a typing mini bobs one pixel this often
 const BLINK_MS = 320 // the desk's screen changes this often
 
-// The desk a worker types at: a monitor on a table, to the mini's right. The mod's own drawing, in mid tones.
-const DESK = ['MMMMM.', 'MnnnM.', 'MnnnM.', 'MMMMM.', '..M...', 'dddddd', 'd....d']
-const DESK_COLORS = { M: 0x5a5f70, n: 0x1f2a44, d: 0x8a6a4a }
+// The desk a worker types at: a monitor on a table, with the keyboard at the near edge. The mod's own drawing, in mid
+// tones. It is drawn over the mini, so the keyboard lies across the mini's middle, under its hands.
+const DESK = ['...MMMMMMM', '...MnnnnnM', '...MnnnnnM', '...MMMMMMM', '......M...', 'kkkddddddd', '.E......E.', '.E......E.']
+const DESK_COLORS = { M: 0x5a5f70, n: 0x1f2a44, d: 0x8a6a4a, E: 0x6f533a, k: 0xc5c8d2 }
 const CODE = [0x7cc47a, 0xf2c230, 0x8fc7ea]
-const DESK_W = 6
-/** The columns one station takes: the mini, a gap, and its desk. */
-export const STATION_W = MINI_SIZE.w + 1 + DESK_W
+const SCREEN = { x: 4, y: 1, w: 5, h: 2 } // the screen's pixels within DESK
+const DESK_AT = 3 // the desk starts this many columns into the mini, which sits at its near edge
+/** The columns one station takes: the mini and its desk, overlapping at the keyboard. */
+export const STATION_W = DESK_AT + (DESK[0] as string).length
 const STATION_EVERY = STATION_W + 3
 const EDGE = 2 // columns kept clear at the band's right edge
 
@@ -49,16 +51,21 @@ export function workersOnBand(views: MiniView[], petLeft: number, width: number)
 /** Draws the workers on `c`, whose bottom row of pet pixels is row HEIGHT - 1: each seated one at its desk, code moving on the screen. */
 export function drawWorkers(c: Canvas, workers: Worker[], body: Body) {
   for (const w of workers) {
-    if (w.isSeated) {
-      const ox = w.x + MINI_SIZE.w + 1
-      const oy = HEIGHT - DESK.length
-      stamp(c, ox, oy, DESK, DESK_COLORS)
-      if (w.view.doneFor === undefined) {
-        const beat = Math.floor(w.view.age / BLINK_MS) + w.k
-        c.px[(oy + 1) * c.w + ox + 1 + (beat % 3)] = CODE[beat % CODE.length] as number
-        c.px[(oy + 2) * c.w + ox + 1 + ((beat + 1) % 3)] = CODE[(beat + 1) % CODE.length] as number
-      }
-    }
     drawMini(c, w.x, w.view, w.k, body, w.lift)
+    if (!w.isSeated) {
+      continue
+    }
+    const ox = w.x + DESK_AT
+    const oy = HEIGHT - DESK.length
+    stamp(c, ox, oy, DESK, DESK_COLORS)
+    if (w.view.doneFor !== undefined) {
+      continue
+    }
+    // Lines of code of uneven length, a new one each beat.
+    const beat = Math.floor(w.view.age / BLINK_MS) + w.k
+    for (let line = 0; line < SCREEN.h; line++) {
+      const length = 2 + ((beat + line * 2) % (SCREEN.w - 1))
+      stamp(c, ox + SCREEN.x, oy + SCREEN.y + line, ['c'.repeat(length)], { c: CODE[(beat + line) % CODE.length] as number })
+    }
   }
 }

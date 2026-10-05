@@ -25,7 +25,7 @@ test('stations run in from the right edge, one per worker, and at most six worke
   const workers = workersOnBand(Array.from({ length: 8 }, () => ({ age: 5000 })), 0, 120)
 
   expect(workers.length).toEqual(6)
-  expect(workers.map(w => w.x)).toEqual([106, 91, 76, 61, 46, 31])
+  expect(workers.map(w => w.x)).toEqual([105, 89, 73, 57, 41, 25])
   expect(station(9, 20)).toEqual(0)
 })
 
@@ -35,8 +35,8 @@ test('a seated worker gets a desk beside it; one still in the air does not', () 
     drawWorkers(c, workersOnBand([{ age }], 0, 60), BODY)
     return c
   }
-  const deskAt = station(0, 60) + STATION_W - 6
-  const deskTop = (c: { w: number; px: number[] }) => c.px[(HEIGHT - 7) * c.w + deskAt]
+  // The monitor's top right corner, at the station's last column.
+  const deskTop = (c: { w: number; px: number[] }) => c.px[(HEIGHT - 8) * c.w + station(0, 60) + STATION_W - 1]
 
   expect(deskTop(drawn(2000))).toEqual(0x5a5f70)
   expect(deskTop(drawn(100))).toEqual(-1)
