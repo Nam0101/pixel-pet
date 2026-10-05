@@ -120,7 +120,7 @@ Here `web` plays two frames of a star, drawn in the palette's `y`, and `think` d
 
 ## Minis
 
-A mini is the small figure that joins the trail behind the pet for each running subagent, up to 6 at a time. It hops while its subagent runs, leaves with a sparkle when the subagent finishes, and turns grey when the subagent fails.
+A mini is the small figure each running subagent gets, up to 6 at a time. In a terminal the pet throws it to a desk of its own on the band, where it types while its subagent runs; in the Desktop app it joins a trail behind the pet and hops. It leaves with a sparkle when the subagent finishes, and turns grey when the subagent fails.
 
 - `mini` colors the mod's drop shape: `top` is the light tip, `body` the belly, `edge` the base. All three are needed, or the minis keep the slime's blues.
 - `miniSprite` replaces the drop. It is rows in the pet's `palette`, up to 5 pixels wide and 7 high. The drop is 5×5. `mini` colors are not used while there is a `miniSprite`.

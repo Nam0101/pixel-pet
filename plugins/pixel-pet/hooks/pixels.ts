@@ -346,9 +346,12 @@ const grey = (c: number) => {
   return (l << 16) | (l << 8) | l
 }
 
-function drawMini(c: Canvas, ox: number, m: MiniView, k: number, body: Body) {
+/** Draws mini `k` with its left edge at `ox`. `lifted` is its height off the ground when something else moves it, such as a throw. */
+export function drawMini(c: Canvas, ox: number, m: MiniView, k: number, body: Body, lifted?: number) {
   let lift = Math.round(Math.abs(Math.sin(m.age / 260 + k * 1.3)) * 3)
-  if (m.age < MINI_DROP_MS) {
+  if (lifted !== undefined) {
+    lift = lifted
+  } else if (m.age < MINI_DROP_MS) {
     lift = Math.round((1 - m.age / MINI_DROP_MS) * 10)
   } else if (m.doneFor !== undefined && !m.failed) {
     lift = Math.round(Math.abs(Math.sin(m.doneFor / 160)) * 5)
@@ -542,6 +545,35 @@ export function encodeCells(c: Canvas) {
   }
 
   return base64(bytes)
+}
+
+/** One run of cells in one color pair: its text, its foreground, and its background; null is the terminal's own color. */
+export type Run = [string, string | null, string | null]
+
+const css = (color: number) => `#${color.toString(16).padStart(6, '0')}`
+
+/** The canvas as rows of runs, two pixels per cell as ▀ and ▄: what `encodeCells` draws, as text a `Client` can draw. */
+export function encodeRuns(c: Canvas): Run[][] {
+  const rows: Run[][] = []
+  for (let r = 0; r < c.h / 2; r++) {
+    const row: Run[] = []
+    for (let x = 0; x < c.w; x++) {
+      const top = c.px[2 * r * c.w + x] as number
+      const bottom = c.px[(2 * r + 1) * c.w + x] as number
+      const glyph = top === NONE ? (bottom === NONE ? ' ' : '▄') : '▀'
+      const fg = top !== NONE ? css(top) : bottom !== NONE ? css(bottom) : null
+      const bg = top !== NONE && bottom !== NONE ? css(bottom) : null
+      const last = row[row.length - 1]
+      if (last && last[1] === fg && last[2] === bg) {
+        last[0] += glyph
+      } else {
+        row.push([glyph, fg, bg])
+      }
+    }
+    rows.push(row)
+  }
+
+  return rows
 }
 
 export function encodeSvg(c: Canvas) {

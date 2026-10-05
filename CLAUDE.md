@@ -7,7 +7,9 @@ Use these words in code, comments, docs, and UI, and no others for the same thin
 - **pet**: what the mod draws. **slime**: the default pet, and its theme. **theme**: one JSON object with a pet's sprite and everything else it changes (props, minis, status lines, HUD, scene), in the format `skills/pixel-pet/FORMAT.md` documents; a theme file holds one. **sprite**: the one still drawing in a theme. **clip**: a loop of frames, one of stand, run, jump, think, cheer. **frame**: one picture of a clip, made from the sprite. **body**: a pet made ready to draw by `animate`, with every clip.
 - **mode**: what the pet is acting out (`idle`, `read`, `bash`, ...). One mode has one set of status lines and one line color. User-facing text calls a mode's animation a **motion**. **face**: one eye expression, one of the 18 in `pixels.ts`.
 - **status line**: the text beside the pet. **band**: the `AbovePrompt` area the pet and status line sit in. **target**: what a tool call works on (a file, pattern, command, host, or search query), which the status line names.
-- **mini**: the small drop for one running subagent, in the pet's `mini` colors. **trail**: the minis behind the pet.
+- **mini**: the small drop for one running subagent, in the pet's `mini` colors. **trail**: the minis behind the pet, where there is no band to seat them (the Desktop app). **worker**: a mini on the band. **station**: a worker's place, where its **desk** stands. **throw**: a new worker's arc from the pet to its station. **patrol**: the pet walking along the stations while its workers type.
+- **context bar**: the row under the band showing the context window. **part**: one row of it (a category, free space, or the autocompact buffer). **tail**: the text after the bar, the reading or the part under the pointer. **legend**: every part by name, opened by a click.
+- **held**: a pet the person is dragging. **poke**: a click on the pet. **word**: a line the pet says of its own, in place of the mode's status line.
 - **HUD**: the window below the prompt with up to three bars. **HP** is the context window left, **MP** the 5-hour rate limit left, **ST** the 7-day rate limit left.
 - **reading**: the bold number after a bar. **detail**: the grey text after the reading.
 - **settings**: the user's choices from the plugin's `userConfig`, read by `settings.ts`. **pace**: the speed setting as a multiplier.
@@ -30,6 +32,8 @@ Use these words in code, comments, docs, and UI, and no others for the same thin
 - `readTheme` refuses only a theme with no sprite. Everything else draws, repaired where needed, with a note saying what changed. Keep it that way: people and agents draw odd pets on purpose.
 - A field added to the theme format goes in `readTheme`, in `skills/pixel-pet/FORMAT.md`, in `assets/alien.json`, and in a test. A theme kept by an older version must still read.
 - Every color must read on a dark terminal and on a light one. Pick mid tones; avoid near-white and near-black text.
+- A `Client` cannot draw a `Raster`, and only a `Client` hears the pointer. `cells.tsx` draws the pet's own cells and the context bar as text; everything else on the band stays a `Raster`. `cells.tsx` is a surface module: it has no `$` and imports nothing from the hooks.
+- The band's `ui.render` hook calls `next(e)` and stacks what it gets under its own tree. Returning without it hides every other mod's band.
 - Pass a string `key` to elements. A number fails the type check.
 - `tools/demo/record.mjs` lays out the band and the HUD as `register.tsx` does, with copies of its layout constants. A layout change in `register.tsx` goes in both.
 - `register.tsx` is the adapter between Claude Code's events and the modules. Logic goes in a module with its own test, not in a hook.

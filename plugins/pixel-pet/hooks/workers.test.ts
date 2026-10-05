@@ -1,0 +1,43 @@
+import { expect, test } from 'claude-code/testing'
+
+import { HEIGHT, canvas } from './pixels'
+import type { Body } from './pixels'
+import { STATION_W, THROW_MS, drawWorkers, station, workersOnBand } from './workers'
+
+const BODY = { palette: {}, mini: { top: 0xffffff, body: 0x3d84f0, edge: 0x1e3a8a } } as unknown as Body
+
+test('a new worker flies from the pet to its station in an arc, then sits and types', () => {
+  const at = (age: number) => workersOnBand([{ age }], 10, 100)[0]
+  const to = station(0, 100)
+
+  expect(at(0)).toEqual({ x: 19, k: 0, view: { age: 0 }, lift: 0, isSeated: false })
+  const mid = at(THROW_MS / 2)
+  expect(mid?.x).toBeGreaterThan(19)
+  expect(mid?.x).toBeLessThan(to)
+  expect(mid?.lift).toEqual(9)
+  expect(at(THROW_MS)?.x).toEqual(to)
+  expect(at(THROW_MS)?.isSeated).toEqual(true)
+  // The typist bobs one pixel, on and off.
+  expect([800, 960, 1120].map(age => at(age)?.lift)).toEqual([1, 0, 1])
+})
+
+test('stations run in from the right edge, one per worker, and at most six workers sit', () => {
+  const workers = workersOnBand(Array.from({ length: 8 }, () => ({ age: 5000 })), 0, 120)
+
+  expect(workers.length).toEqual(6)
+  expect(workers.map(w => w.x)).toEqual([106, 91, 76, 61, 46, 31])
+  expect(station(9, 20)).toEqual(0)
+})
+
+test('a seated worker gets a desk beside it; one still in the air does not', () => {
+  const drawn = (age: number) => {
+    const c = canvas(60, HEIGHT)
+    drawWorkers(c, workersOnBand([{ age }], 0, 60), BODY)
+    return c
+  }
+  const deskAt = station(0, 60) + STATION_W - 6
+  const deskTop = (c: { w: number; px: number[] }) => c.px[(HEIGHT - 7) * c.w + deskAt]
+
+  expect(deskTop(drawn(2000))).toEqual(0x5a5f70)
+  expect(deskTop(drawn(100))).toEqual(-1)
+})

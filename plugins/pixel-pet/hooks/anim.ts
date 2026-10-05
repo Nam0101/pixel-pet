@@ -28,6 +28,8 @@ export type Activity = {
   room: number // the furthest column a running pet may reach
   obstacles: Span[] // the scene's obstacles, in band columns
   trail: number // the minis' width, drawn behind the pet
+  held?: number // the column the person's pointer holds the pet at, while they drag it
+  workers?: number // the minis at work on the band, which the pet walks along to check on
 }
 
 /** The mode the pet holds while nothing starts or ends. */
@@ -35,11 +37,13 @@ function settle(w: Activity, t: number): Mode {
   if (!w.isWorking) {
     return 'idle'
   }
+  const hasWorkers = (w.workers ?? 0) > 0
   if (w.activeTools > 0) {
-    return w.activeMode
+    // While its subagents work, the pet walks along their desks to check on them rather than standing by.
+    return w.activeMode === 'agent' && hasWorkers ? 'run' : w.activeMode
   }
 
-  return t - w.lastToolAt < RUN_AFTER_TOOL_MS ? 'run' : 'think'
+  return hasWorkers || t - w.lastToolAt < RUN_AFTER_TOOL_MS ? 'run' : 'think'
 }
 
 /**
@@ -50,6 +54,10 @@ function settle(w: Activity, t: number): Mode {
  * of the mod, with a mode this one lacks, starts over idle.
  */
 export function step(a: Anim, w: Activity, t: number, s: Pick<Settings, 'pace' | 'sleepAfterMs'> = DEFAULTS): Anim {
+  if (w.held !== undefined) {
+    // Nothing starts in the person's hand: `working` holds, so a turn that ended or began still cheers or jumps once set down.
+    return { ...carry(a, w.held), tick: a.tick + 1 }
+  }
   if (a.leap) {
     const u = (t - a.leap.since) * s.pace
     // Nothing else starts mid-air: `working` holds, so a turn that ended or began still cheers or jumps on landing.
@@ -143,6 +151,25 @@ export function leapX(leap: Leap, u: number) {
 
 /** How far into the jump clip a leap `u` ms (at pace) in has come, at the clip's own speed. */
 export const leapClipMs = (u: number) => u / LEAP_SLOW
+
+/** How far into the jump clip a held pet is drawn: lifted, legs dangling. */
+export const HELD_CLIP_MS = JUMP_MS * 0.4
+
+/** The pet with the person's pointer holding it at column `x`. A leap ends where it is picked up. */
+export function carry(a: Anim, x: number): Anim {
+  const { leap: _, ...held } = a
+  return { ...held, x }
+}
+
+/** The pet set down after a drag: it cheers, unless a turn is running. */
+export function drop(a: Anim, t: number): Anim {
+  return a.working ? a : { ...a, mode: 'cheer', since: t }
+}
+
+/** The pet after a click: it hops, unless a turn is running. */
+export function poke(a: Anim, t: number): Anim {
+  return a.working ? a : { ...a, mode: 'jump', since: t }
+}
 
 /** The pet after a failed tool call: an error face, unless it is cheering. */
 export function fail(a: Anim, t: number): Anim {

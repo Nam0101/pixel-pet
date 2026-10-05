@@ -2,7 +2,9 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Anim, Mode } from '../types'
-import { TICK_MS, fail, leapClipMs, step } from './anim'
+import { HELD_CLIP_MS, TICK_MS, carry, drop, fail, leapClipMs, poke, step } from './anim'
+import { barRow, barWidth, contextFrom, formatTokens, readingColor, remark, rowAt, rowColor, rowLabel, summary } from './context'
+import type { Context } from './context'
 import { BAR_W, HUD_WINDOW_W, frameColor, hudFrom, hudRows, mood, windowEdges } from './hud'
 import type { Hud } from './hud'
 import { minisOnScreen, reconcile } from './minis'
@@ -10,18 +12,22 @@ import type { Mini } from './minis'
 import { animate, readTheme, restingFrame } from './theme'
 import { previewPage } from './preview'
 import { readSettings } from './settings'
-import { BODY_W, FACES, HEIGHT, MAX_MINIS, compose, crop, encodeCells, encodeSvg, trailWidth } from './pixels'
-import type { Body } from './pixels'
-import { GROUND_H, drawBand, layScene, obstacleSpans } from './scene'
+import { BODY_W, FACES, HEIGHT, MAX_MINIS, compose, crop, encodeCells, encodeRuns, encodeSvg } from './pixels'
+import type { Body, Run } from './pixels'
+import { GROUND_H, NO_SCENE, drawBand, layScene, obstacleSpans } from './scene'
 import type { SceneLayout } from './scene'
 import { lineColor, lineWidth, statusLine, targetOf, toolMode } from './status'
 import type { ToolMode } from './status'
+import { workersOnBand } from './workers'
 
 const ROWS = 10 // a cell is two pixels tall, so the frames are 20 px high
 const GROUND_ROWS = GROUND_H / 2
 const STATUS_ROOM = 20 // columns kept free beside a running pet for its status line
 const USAGE_EVERY_BEATS = 20
 const AGENTS_EVERY_BEATS = 5
+const SAY_MS = 5000 // how long a word the pet says of its own stays in the status line
+const POKES = ['boop!', 'hehe, that tickles', 'yes? yes!', '♥']
+const DROPS = ['wheee!', 'nice spot', 'thanks for the lift']
 const SLOW_BEATS: Partial<Record<Mode, number>> = { idle: 2, sleep: 4 } // ticks per redraw while nothing moves fast
 
 const THEME_KEY = 'theme' // in $.store: the theme set_theme last took
@@ -48,6 +54,25 @@ async function usageOr($: EngineInterface, now: number, last: Hud | undefined) {
   } catch {
     return last
   }
+}
+
+/** The context from a fresh usage breakdown, or `last` when the usage call fails or has no reading. */
+async function contextOr($: EngineInterface, last: Context | undefined) {
+  try {
+    return contextFrom(await $.session.usage({ breakdown: 'summary' })) ?? last
+  } catch {
+    return last
+  }
+}
+
+/** What a `Client` of the mod's posted: what the pointer did, at which column, and where a press began. */
+function readPointer(data: unknown) {
+  const d = data as { type?: unknown; x?: unknown; from?: unknown } | null
+  if (typeof d !== 'object' || d === null || typeof d.type !== 'string' || typeof d.x !== 'number') {
+    return undefined
+  }
+
+  return { type: d.type, x: d.x, from: typeof d.from === 'number' ? d.from : d.x }
 }
 
 /** The minis after a fresh look at the session's agents, or `last` when the list call fails. */
@@ -107,16 +132,20 @@ export const register: Register = (on, options) => {
   let previewed: unknown // the last theme preview_theme drew, for set_theme to apply without resending it
   let layout: SceneLayout | undefined // the scene of `layoutOf` on a band `bandWidth()` wide
   let layoutOf: Body | undefined
+  let context: Context | undefined
+  let isLegendOpen = false // a click on the context bar opens its legend
+  let say: { text: string; until: number } | undefined // a word of the pet's own, in place of the mode's line
+  let heldAt: number | undefined // the column the person's pointer holds the pet at
+  let petLeft = 0 // the pet's column as last drawn, which a drag is measured from
+  let pokes = 0
+  let pointedPart: string | undefined // the context bar's tail while the pointer is over a part
 
   // The band leaves the last column free, so a full row never wraps.
   const bandWidth = () => Math.max(BODY_W, bodyColumns - 1)
-  /** The layout of the pet's scene on the band as wide as it is now, or undefined for a pet with no scene. */
+  /** The layout of the pet's scene on the band as wide as it is now; a pet with no scene has an empty one. */
   const sceneLayout = (pet: Body) => {
-    if (!pet.scene) {
-      return undefined
-    }
     if (layout?.width !== bandWidth() || layoutOf !== pet) {
-      layout = layScene(pet.scene, bandWidth())
+      layout = layScene(pet.scene ?? NO_SCENE, bandWidth())
       layoutOf = pet
     }
     return layout
@@ -126,6 +155,7 @@ export const register: Register = (on, options) => {
     const now = await $.clock.now()
     await update($, anim, () => ({ mode: 'idle', since: now, x: 0, dir: 1, tick: 0, target: '', working: false }))
     hud = await usageOr($, now, undefined)
+    context = settings.contextBar ? await contextOr($, context) : undefined
     try {
       await $.tool.register({
         name: 'preview_theme',
@@ -170,13 +200,13 @@ export const register: Register = (on, options) => {
         minis = await minisOr($, t, minis)
       }
 
-      const trail = trailWidth(minis.length)
-      const room = Math.max(0, bodyColumns - BODY_W - trail - STATUS_ROOM)
-      const scene = body && sceneLayout(body)
-      const obstacles = scene ? obstacleSpans(scene) : []
+      // The minis work at their desks on the band, so the pet has no trail behind it.
+      const room = Math.max(0, bodyColumns - BODY_W - STATUS_ROOM)
+      const obstacles = body ? obstacleSpans(sceneLayout(body)) : []
+      const activity = { isWorking, activeTools, activeMode, activeTarget, lastToolAt, room, obstacles, trail: 0, held: heldAt, workers: minis.length }
       await update($, anim, a => {
-        const moved = step(a, { isWorking, activeTools, activeMode, activeTarget, lastToolAt, room, obstacles, trail }, t, settings)
-        // Minis hop on every tick, so they keep the redraw rate up while the pet idles.
+        const moved = step(a, activity, t, settings)
+        // Minis type on every tick, so they keep the redraw rate up while the pet idles.
         const slowBeat = minis.length > 0 ? undefined : SLOW_BEATS[moved.mode]
         return slowBeat !== undefined && moved.mode === a.mode && beat % slowBeat !== 0 ? a : moved
       })
@@ -259,6 +289,74 @@ export const register: Register = (on, options) => {
     return { result: `The ${read.theme.name} theme is on screen now, for this session and later ones.\n\n${themeReport(body, read.notes)}` }
   })
 
+  on('turn.complete', async ($, e, next) => {
+    const done = await next(e)
+    if (settings.contextBar && e.agentId === undefined) {
+      const last = context
+      context = await contextOr($, last)
+      const word = context && remark(last, context)
+      if (word) {
+        const now = await $.clock.now()
+        say = { text: word.text, until: now + SAY_MS }
+        if (word.isLighter) {
+          await update($, anim, a => drop(a, now))
+        }
+      }
+      $.ui.invalidate('ui.render')
+    }
+
+    return done
+  })
+
+  on('ui.message', async ($, e, next) => {
+    const pointer = readPointer(e.data)
+    if (!pointer || (e.element !== 'pet' && e.element !== 'context')) {
+      return next(e)
+    }
+    const now = await $.clock.now()
+    if (e.element === 'context') {
+      if (!context) {
+        return {}
+      }
+      const width = barWidth(bandWidth())
+      if (pointer.type === 'hover') {
+        const row = rowAt(context, width, pointer.x)
+        pointedPart = row && rowLabel(row)
+        // The instance takes its props at once; the next redraw draws the same tail.
+        return { props: { rows: [barRow(context, width, pointedPart)] } }
+      }
+      if (pointer.type === 'leave') {
+        pointedPart = undefined
+        return { props: { rows: [barRow(context, width)] } }
+      }
+      if (pointer.type === 'click') {
+        isLegendOpen = !isLegendOpen
+        context = await contextOr($, context)
+        say = context && { text: summary(context), until: now + SAY_MS }
+        // The pet looks up at a click on its bar.
+        await update($, anim, a => poke(a, now))
+        $.ui.invalidate('ui.render')
+      }
+
+      return {}
+    }
+    if (pointer.type === 'drag') {
+      // The pet follows the pointer by the cell it was picked up at.
+      const to = Math.max(0, Math.min(petLeft + pointer.x - pointer.from, bandWidth() - BODY_W))
+      heldAt = to
+      await update($, anim, a => carry(a, to))
+    } else if (pointer.type === 'drop') {
+      heldAt = undefined
+      say = { text: DROPS[pokes++ % DROPS.length] as string, until: now + SAY_MS }
+      await update($, anim, a => drop(a, now))
+    } else if (pointer.type === 'click') {
+      say = { text: POKES[pokes++ % POKES.length] as string, until: now + SAY_MS }
+      await update($, anim, a => poke(a, now))
+    }
+
+    return {}
+  })
+
   on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
     if (!settings.hud || !hud || e.surface !== 'terminal') {
       return next(e)
@@ -301,10 +399,12 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (e.props.hasSurvey) {
+      return next(e)
+    }
+    // The bands of the mods beneath stack under the pet's.
+    const below = await next(e)
     try {
-      if (e.props.hasSurvey) {
-        return next(e)
-      }
       isWorking = e.props.isWorking
       bodyColumns = e.props.bodyColumns
 
@@ -315,64 +415,94 @@ export const register: Register = (on, options) => {
       const now = await $.clock.now()
       const elapsed = now - a.since
       const views = minisOnScreen(minis, now)
-      // A leap is the run mode playing the jump clip, slowed, while the pet travels.
-      const drawn = a.leap ? { mode: 'jump' as const, ms: leapClipMs((now - a.leap.since) * settings.pace) } : { mode: a.mode, ms: elapsed * settings.pace }
-      const picture = compose(body, drawn.mode, drawn.ms, a.dir, hud ? mood(hud) : 'ok', views)
+      const onBand = e.surface === 'terminal'
+      // A held pet hangs mid-jump. A leap is the run mode playing the jump clip, slowed, while the pet travels.
+      const drawn =
+        heldAt !== undefined
+          ? { mode: 'jump' as const, ms: HELD_CLIP_MS }
+          : a.leap
+            ? { mode: 'jump' as const, ms: leapClipMs((now - a.leap.since) * settings.pace) }
+            : { mode: a.mode, ms: elapsed * settings.pace }
+      // On the band the minis sit at their desks; elsewhere they trail behind the pet.
+      const picture = compose(body, drawn.mode, drawn.ms, a.dir, hud ? mood(hud) : 'ok', onBand ? [] : views)
       const extra = views.length > MAX_MINIS ? ` (+${views.length - MAX_MINIS} minis)` : ''
-      const line = settings.statusLine ? statusLine(a.mode, a.since, elapsed, a.target, body.look.lines[a.mode]) + extra : ''
+      // A pet out checking on its workers says so, in the agent mode's words.
+      const spoken = a.mode === 'run' && isWorking && views.length > 0 ? ('agent' as const) : a.mode
+      const word = say && now < say.until ? say.text : undefined
+      const line = settings.statusLine ? (word ?? statusLine(spoken, a.since, elapsed, a.target, body.look.lines[spoken]) + extra) : ''
       if (showsError) {
         showsError = false
         $.ui.status(undefined)
       }
 
-      const scene = sceneLayout(body)
-      if (e.surface === 'terminal' && scene && body.scene) {
-        const { Box, Raster, Text } = $.ui.resolve(e)
+      if (e.surface === 'terminal') {
+        const { Box, Client, Raster, Text } = $.ui.resolve(e)
+        const scene = sceneLayout(body)
         const width = scene.width
+        const groundRows = body.scene?.ground ? GROUND_ROWS : 0
         const textW = line ? lineWidth(line) + 3 : 0
         const left = Math.max(0, Math.min(Math.round(a.x), width - picture.w - textW))
-        const band = drawBand(body, body.scene, scene, picture, left, now)
+        petLeft = left
+        const band = drawBand(body, body.scene ?? NO_SCENE, scene, picture, left, now, workersOnBand(views, left, width))
         const cells = (x: number, y: number, w: number, h: number) => encodeCells(crop(band, x, y, w, h))
         // The status line cuts a hole in the band; the band shows above, below, and right of it.
         const textAt = left + picture.w
         const shown = Math.min(textW, width - textAt)
         const rest = width - textAt - shown
+        const text = (runs: Run[]) =>
+          runs.map(([run, color, backgroundColor], i) => (
+            <Text key={`run-${i}`} color={color ?? undefined} backgroundColor={backgroundColor ?? undefined}>
+              {run}
+            </Text>
+          ))
+        const bar = settings.contextBar && context ? barRow(context, barWidth(width), pointedPart) : undefined
+        const shownContext = context
 
         return (
-          <Box flexDirection="column" height={ROWS + GROUND_ROWS}>
-            <Box height={ROWS}>
-              <Raster key="pet" columns={textAt} rows={ROWS} cells={cells(0, 0, textAt, HEIGHT)} />
-              {shown > 0 && (
-                <Box key="line" flexDirection="column" width={shown}>
-                  <Raster key="above" columns={shown} rows={ROWS - 2} cells={cells(textAt, 0, shown, HEIGHT - 4)} />
-                  <Text color={lineColor(a.mode, body.look.lineColors)} bold wrap="truncate">
-                    {` › ${line}`}
-                  </Text>
-                  <Raster key="below" columns={shown} rows={1} cells={cells(textAt, HEIGHT - 2, shown, 2)} />
-                </Box>
-              )}
-              {rest > 0 && <Raster key="rest" columns={rest} rows={ROWS} cells={cells(textAt + shown, 0, rest, HEIGHT)} />}
+          <Box flexDirection="column">
+            <Box key="band" flexDirection="column" height={ROWS + groundRows}>
+              <Box height={ROWS}>
+                {settings.interactive && left > 0 && <Raster key="left" columns={left} rows={ROWS} cells={cells(0, 0, left, HEIGHT)} />}
+                {settings.interactive ? (
+                  // The pet's own cells are text in a Client, which hears the pointer; a Raster hears nothing.
+                  <Client key="pet" module="./cells.tsx" width={picture.w} height={ROWS} props={{ rows: encodeRuns(crop(band, left, 0, picture.w, HEIGHT)) }} />
+                ) : (
+                  <Raster key="pet" columns={textAt} rows={ROWS} cells={cells(0, 0, textAt, HEIGHT)} />
+                )}
+                {shown > 0 && (
+                  <Box key="line" flexDirection="column" width={shown}>
+                    <Raster key="above" columns={shown} rows={ROWS - 2} cells={cells(textAt, 0, shown, HEIGHT - 4)} />
+                    <Text color={word ? readingColor(shownContext?.percent ?? 0) : lineColor(spoken, body.look.lineColors)} bold wrap="truncate">
+                      {` › ${line}`}
+                    </Text>
+                    <Raster key="below" columns={shown} rows={1} cells={cells(textAt, HEIGHT - 2, shown, 2)} />
+                  </Box>
+                )}
+                {rest > 0 && <Raster key="rest" columns={rest} rows={ROWS} cells={cells(textAt + shown, 0, rest, HEIGHT)} />}
+              </Box>
+              {groundRows > 0 && <Raster key="ground" columns={width} rows={groundRows} cells={cells(0, HEIGHT, width, GROUND_H)} />}
             </Box>
-            <Raster key="ground" columns={width} rows={GROUND_ROWS} cells={cells(0, HEIGHT, width, GROUND_H)} />
-          </Box>
-        )
-      }
-      if (e.surface === 'terminal') {
-        const { Box, Raster, Text } = $.ui.resolve(e)
-        const room = Math.max(0, bodyColumns - picture.w - line.length - 4)
-
-        return (
-          <Box height={ROWS}>
-            <Box marginLeft={Math.min(Math.round(a.x), room)} alignItems="flex-end">
-              <Raster key="pet" columns={picture.w} rows={ROWS} cells={encodeCells(picture)} />
-              {line && (
-                <Box marginBottom={1} marginLeft={1}>
-                  <Text color={lineColor(a.mode, body.look.lineColors)} bold>
-                    › {line}
+            {bar &&
+              (settings.interactive ? (
+                <Client key="context" module="./cells.tsx" height={1} props={{ rows: [bar] }} />
+              ) : (
+                <Text key="context" wrap="truncate-end">
+                  {text(bar)}
+                </Text>
+              ))}
+            {bar && isLegendOpen && shownContext && (
+              <Box key="legend" flexWrap="wrap" columnGap={2}>
+                {shownContext.rows.map((row, at) => (
+                  <Text key={`part-${at}`}>
+                    <Text color={rowColor(shownContext, at)}>■</Text> {row.name} {formatTokens(row.tokens)}
                   </Text>
-                </Box>
-              )}
-            </Box>
+                ))}
+                <Text key="total" color={readingColor(shownContext.percent)}>
+                  {summary(shownContext)}
+                </Text>
+              </Box>
+            )}
+            {below}
           </Box>
         )
       }
@@ -380,25 +510,28 @@ export const register: Register = (on, options) => {
         const { Box, Svg, Text } = $.ui.resolve(e)
 
         return (
-          <Box alignItems="flex-end">
-            <Box marginLeft={Math.round(a.x)}>
-              <Svg source={encodeSvg(picture)} alt={`${body.name}, ${a.mode}`} width={picture.w * 4} height={80} />
+          <Box flexDirection="column">
+            <Box key="band" alignItems="flex-end">
+              <Box marginLeft={Math.round(a.x)}>
+                <Svg source={encodeSvg(picture)} alt={`${body.name}, ${a.mode}`} width={picture.w * 4} height={80} />
+              </Box>
+              {line && (
+                <Text color={lineColor(spoken, body.look.lineColors)} bold>
+                  {line}
+                </Text>
+              )}
             </Box>
-            {line && (
-              <Text color={lineColor(a.mode, body.look.lineColors)} bold>
-                {line}
-              </Text>
-            )}
+            {below}
           </Box>
         )
       }
 
-      return next(e)
+      return below
     } catch (err) {
       showsError = true
       $.ui.status(`pixel-pet: ${String(err)}`)
 
-      return next(e)
+      return below
     }
   })
 }

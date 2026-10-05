@@ -1,0 +1,262 @@
+{
+  "name": "NamNV",
+  "sprite": [
+    "...OOOOOOOOO...",
+    "..OHHhhhHHHHO..",
+    ".OHHhHHHffHHHO.",
+    ".OHgggggggggHO.",
+    ".OHfffffffffHO.",
+    ".OHfffffffffHO.",
+    "..OrrrfffrrrO..",
+    "..OFffmmmffFO..",
+    ".OwwwwsFswwwwO.",
+    ".OsssssbsssssO."
+  ],
+  "palette": {
+    "O": "#2a211f",
+    "H": "#5a443c",
+    "h": "#8a6f62",
+    "f": "#f3c9a5",
+    "F": "#dba583",
+    "m": "#c97a6a",
+    "g": "#33333d",
+    "r": "#c5c8d2",
+    "w": "#f3ebe0",
+    "s": "#cfc2b0",
+    "b": "#a89a88",
+    "k": "#3b2a22",
+    "y": "#f2c230",
+    "Y": "#d9a520",
+    "e": "#c9762b",
+    "t": "#c9603a",
+    "W": "#fff3c4",
+    "d": "#8a6a4a",
+    "E": "#6f533a",
+    "G": "#4f9a55",
+    "L": "#7cc47a",
+    "c": "#d7dde8",
+    "S": "#ffd96a",
+    "M": "#5a5f70",
+    "n": "#1f2a44",
+    "B": "#8fc7ea"
+  },
+  "outline": "O",
+  "eyes": [
+    [
+      4,
+      4
+    ],
+    [
+      9,
+      4
+    ]
+  ],
+  "eyeColor": "#2a2220",
+  "cheeks": [
+    [
+      3,
+      7
+    ],
+    [
+      11,
+      7
+    ]
+  ],
+  "cheekColor": "#f2a58f",
+  "mini": {
+    "top": "#ffe58a",
+    "body": "#f2c230",
+    "edge": "#c9762b"
+  },
+  "miniSprite": [
+    ".e.",
+    "yyy",
+    "yYy",
+    "yyy",
+    ".e."
+  ],
+  "props": {
+    "idle": [
+      [
+        ".MMMMMMM",
+        ".MnnnnnM",
+        ".MnLLnyM",
+        ".MnLnnnM",
+        ".MMMMMMM",
+        "rrrrrrrr"
+      ],
+      [
+        ".MMMMMMM",
+        ".MnnnnnM",
+        ".MnLLnyM",
+        ".MnLLynM",
+        ".MMMMMMM",
+        "rrrrrrrr"
+      ],
+      [
+        ".MMMMMMM",
+        ".MnyLnnM",
+        ".MnLLnyM",
+        ".MnLLynM",
+        ".MMMMMMM",
+        "rrrrrrrr"
+      ]
+    ]
+  },
+  "lines": {
+    "idle": [
+      "gõ phím lạch cạch",
+      "nhâm nhi cà phê đen",
+      "làm gì tiếp đây?",
+      "sẵn sàng rồi"
+    ],
+    "sleep": [
+      "zzz… ngủ trưa tí",
+      "zzz… gọi thì dậy"
+    ],
+    "think": [
+      "để nghĩ đã…",
+      "đẩy kính, ngẫm nghĩ",
+      "sắp ra rồi…"
+    ],
+    "read": [
+      "đang đọc {}",
+      "soi {}",
+      "đọc kỹ từng dòng…"
+    ],
+    "search": [
+      "tìm \"{}\"",
+      "lục tung cả repo"
+    ],
+    "edit": [
+      "sửa {}",
+      "gõ code đây"
+    ],
+    "bash": [
+      "$ {}",
+      "chạy {}",
+      "cầu trời pass…"
+    ],
+    "web": [
+      "lướt {}",
+      "chờ mạng…"
+    ],
+    "agent": [
+      "đi kiểm tra đàn em",
+      "cả phòng máy đang gõ"
+    ],
+    "run": [
+      "nhanh nhanh",
+      "xong ngay!"
+    ],
+    "jump": [
+      "làm luôn!",
+      "triển thôi!"
+    ],
+    "cheer": [
+      "ngon lành ✦",
+      "xong rồi, cà phê thôi",
+      "chuẩn bài!"
+    ],
+    "error": [
+      "ối, toang rồi",
+      "lỗi rồi, thử lại…"
+    ]
+  },
+  "lineColors": {
+    "idle": "#d9a520",
+    "run": "#d9a520",
+    "jump": "#d9a520",
+    "agent": "#c9762b",
+    "think": "#8f9bb3",
+    "cheer": "#4f9a55"
+  },
+  "hud": {
+    "frame": "#d9a520",
+    "hp": {
+      "label": "♥ HP",
+      "color": "#c9603a",
+      "fill": [
+        "#c9603a",
+        "#f2a58f"
+      ]
+    },
+    "mp": {
+      "label": "☕ MP",
+      "color": "#8a6a4a",
+      "fill": [
+        "#6f533a",
+        "#c9a27a"
+      ]
+    },
+    "st": {
+      "label": "◆ ST",
+      "color": "#d9a520",
+      "fill": [
+        "#b8860b",
+        "#f2c230"
+      ]
+    }
+  },
+  "scene": {
+    "ground": [
+      "ddEdddddEddddEdd",
+      "EEEEEEEEEEEEEEEE"
+    ],
+    "sky": [
+      "cccccccccccc",
+      "cBBBBcBBSSBc",
+      "cBWWBcBBSSBc",
+      "cWWWWcBBBBBc",
+      "cccccccccccc",
+      "cBBBBcBBBBBc",
+      "cyyBBcBBtttc",
+      "cyyyBcBtttyc",
+      "cccccccccccc"
+    ],
+    "obstacles": [
+      [
+        ".MMMM.",
+        ".MMMM.",
+        ".MMMM.",
+        "MMMMMM",
+        "..MM..",
+        ".M..M."
+      ],
+      [
+        "dddddd",
+        "dEddEd",
+        "dddddd",
+        "dddddd"
+      ],
+      [
+        "tttt.",
+        "yyyyy",
+        ".GGGG",
+        "ccccc"
+      ]
+    ],
+    "decor": [
+      [
+        "....MMMMMMMM....",
+        "....MnnnnnnM....",
+        "....MnLnnynM....",
+        "....MnnLLnnM....",
+        "....MMMMMMMM....",
+        ".kk....MM.......",
+        ".kk...MMMM......",
+        "dddddddddddddddd",
+        ".E............E.",
+        ".E............E."
+      ],
+      [
+        ".G.G.",
+        "GLGGG",
+        ".GGG.",
+        ".ttt.",
+        ".ttt."
+      ]
+    ],
+    "every": 52
+  }
+}

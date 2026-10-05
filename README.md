@@ -10,6 +10,11 @@
 </p>
 
 <p align="center">
+  A fork of <a href="https://github.com/Namenomeaning/pixel-pet">Namenomeaning/pixel-pet</a> by halluqinate. It adds a context bar under the pet,<br>
+  clicks and drags, subagents that type at their own desks, and room for other mods' bands.
+</p>
+
+<p align="center">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-5aa9ff"></a>
   <img alt="Claude Code 2.1.287 or later" src="https://img.shields.io/badge/Claude_Code-2.1.287+-ffe25a">
 </p>
@@ -23,7 +28,7 @@
 You need Claude Code v2.1.287 or later (`claude --version`).
 
 ```bash
-claude plugin marketplace add Namenomeaning/pixel-pet
+claude plugin marketplace add Nam0101/pixel-pet
 claude plugin install pixel-pet@pixel-pet
 ```
 
@@ -44,9 +49,23 @@ To uninstall, run `claude plugin uninstall pixel-pet@pixel-pet`.
 | `Edit`, `MultiEdit`, `Write`, `NotebookEdit`, `TodoWrite` | Writes with a pen: `editing app.ts` |
 | `Bash`, and any tool not listed | Types in a small terminal: `$ npm test` |
 | `WebFetch`, `WebSearch` | Spins a globe: `fetching docs.anthropic.com` |
-| A subagent starts | Smiles. A mini joins the trail behind the pet and stays until that subagent finishes. It leaves with a sparkle, or grey if the subagent failed. |
+| A subagent starts | The pet hands a mini its task: the mini flies to a desk of its own on the band and types there until that subagent finishes. It leaves with a sparkle, or grey if the subagent failed. While minis work, the pet walks along their desks to check on them. |
 | A tool call fails | `x x` eyes and a sweat drop |
 | A turn ends | Cheers |
+
+## The context bar
+
+Under the pet's feet, one row shows the context window: each part Claude Code counts (system prompt, tools, messages, and so on) in its own color, free space and the autocompact buffer as a low track, and the share in use at the end. The bar follows the terminal's width.
+
+- Point at a part and the end of the bar names it and its tokens.
+- Click the bar and a legend of every part opens below it. Click again to close it.
+- The pet speaks up the first time the context passes 50 %, 75 %, and 90 %, and cheers when a `/compact` lightens it.
+
+Bands that other mods draw above the prompt, such as a row of buttons, stack below the bar.
+
+## Play with it
+
+In a terminal, click the pet and it hops. Press on it, drag, and let go: it hangs from the pointer and stays where you set it down. Both need a terminal that reports the mouse to Claude Code. The **Clicks and drags** setting turns them off, and the pet then draws exactly as it did before.
 
 ## The HUD
 
@@ -91,7 +110,9 @@ In a session, run `/plugin configure pixel-pet@pixel-pet`.
 | HUD | on | The HP, MP, and ST bars below the prompt. |
 | Status line | on | The text beside the pet. |
 | Name files and commands | on | The status line names the file, pattern, command, host, or search query a tool works on. Turn it off to share your screen. |
-| Subagent minis | on | A mini behind the pet for each running subagent. |
+| Subagent minis | on | A mini at its own desk on the band for each running subagent. |
+| Context bar | on | The context window as a bar under the pet. |
+| Clicks and drags | on | Click the pet, drag it along the band, and point at the context bar. |
 
 From a shell, pipe the values as JSON, then restart Claude Code:
 
@@ -99,7 +120,7 @@ From a shell, pipe the values as JSON, then restart Claude Code:
 echo '{"speed": "fast", "sleepAfter": "300"}' | claude plugin configure pixel-pet@pixel-pet --values-stdin
 ```
 
-`claude plugin configure pixel-pet@pixel-pet` with no input lists the settings and which you have set. The install's "6 userConfig options not yet set" needs nothing from you: each setting has a default.
+`claude plugin configure pixel-pet@pixel-pet` with no input lists the settings and which you have set. The install's "8 userConfig options not yet set" needs nothing from you: each setting has a default.
 
 ## Update
 
@@ -118,7 +139,8 @@ The pet draws with colored text cells, so it works in any terminal with 24-bit c
 
 A mod runs inside Claude Code with your permissions. pixel-pet:
 
-- reads only its own theme files, polls session usage and the list of subagents, and draws;
+- reads only its own theme files, polls session usage (with the context window's breakdown) and the list of subagents, and draws;
+- hears the pointer over the pet and the context bar only, as a column and what it did;
 - registers three tools for changing the theme: `get_theme` returns the theme on screen, `preview_theme` writes a preview page to the path Claude gives it, and `set_theme` changes the theme and keeps it in the mod's own store;
 - makes no network requests, starts no processes, and reads no environment variables.
 
@@ -126,7 +148,7 @@ Its `tool.call` hook sees each tool's input and keeps only a short target for th
 
 To check this yourself, clone the repo and run `claude plugin validate plugins/pixel-pet`. Its `calls:` line lists everything the mod asks Claude Code to do.
 
-To report a vulnerability, open a [private security advisory](https://github.com/Namenomeaning/pixel-pet/security/advisories/new).
+To report a vulnerability, open a [private security advisory](https://github.com/Nam0101/pixel-pet/security/advisories/new).
 
 ## Develop
 
@@ -144,6 +166,9 @@ plugins/pixel-pet/                the plugin: a Claude Code mod
   hooks/status.ts                 the status line beside the pet
   hooks/hud.ts                    the HP, MP, and ST bars in their window
   hooks/minis.ts                  tracks a mini per subagent
+  hooks/workers.ts                seats each mini at a desk on the band, and draws the desk
+  hooks/context.ts                the context window as a bar: its parts, its cells, and what the pet says of it
+  hooks/cells.tsx                 draws cells as text where the pointer is heard, and reports what the pointer did
   hooks/settings.ts               reads the settings
   hooks/*.test.ts                 the tests, one file per module
   types/index.d.ts                the mod's state, as Claude Code keeps it
@@ -151,6 +176,7 @@ plugins/pixel-pet/                the plugin: a Claude Code mod
   assets/slime.json               the default pet
   assets/duck.json                an example pet that faces to one side
   assets/alien.json               an example pet that uses every field
+  assets/namnv.json               an example pet with a workplace scene and Vietnamese status lines
   skills/pixel-pet/               the skill that draws a pet with you, and the pet format
 tools/preview/build.mjs           writes the preview of a theme file
 tools/demo/record.mjs             records docs/images/demo.gif
@@ -179,4 +205,4 @@ Installed copies update only when `version` in `plugins/pixel-pet/.claude-plugin
 
 ## Author
 
-Made by **halluqinate**. Say hi on [X](https://x.com/QuillPhan), [Instagram](https://www.instagram.com/hallu.qinate/), [TikTok](https://www.tiktok.com/@halluqinate), or [LinkedIn](https://www.linkedin.com/in/phan-vu-anh-quang-3b57b1177/).
+Made by **halluqinate**; this fork is kept by [Nam0101](https://github.com/Nam0101). Say hi on [X](https://x.com/QuillPhan), [Instagram](https://www.instagram.com/hallu.qinate/), [TikTok](https://www.tiktok.com/@halluqinate), or [LinkedIn](https://www.linkedin.com/in/phan-vu-anh-quang-3b57b1177/).

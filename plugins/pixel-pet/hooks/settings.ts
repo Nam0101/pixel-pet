@@ -6,11 +6,13 @@ export type Settings = {
   statusLine: boolean
   targets: boolean // the status line names files, patterns, commands, and hosts
   minis: boolean
+  contextBar: boolean // the context window as a bar under the pet
+  interactive: boolean // the pet and the context bar take clicks and drags
 }
 
 const PACE: Record<string, number> = { slow: 0.6, normal: 1, fast: 1.6 }
 
-export const DEFAULTS: Settings = { pace: 1, sleepAfterMs: 60000, hud: true, statusLine: true, targets: true, minis: true }
+export const DEFAULTS: Settings = { pace: 1, sleepAfterMs: 60000, hud: true, statusLine: true, targets: true, minis: true, contextBar: true, interactive: true }
 
 const flag = (v: unknown, fallback: boolean) => (typeof v === 'boolean' ? v : fallback)
 
@@ -28,5 +30,7 @@ export function readSettings(options: Readonly<Record<string, unknown>>): Settin
     statusLine: flag(options.statusLine, DEFAULTS.statusLine),
     targets: flag(options.targets, DEFAULTS.targets),
     minis: flag(options.minis, DEFAULTS.minis),
+    contextBar: flag(options.contextBar, DEFAULTS.contextBar),
+    interactive: flag(options.interactive, DEFAULTS.interactive),
   }
 }

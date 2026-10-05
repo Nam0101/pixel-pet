@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Anim } from '../types'
-import { LEAP_MS, fail, step } from './anim'
+import { LEAP_MS, carry, drop, fail, poke, step } from './anim'
 import type { Activity } from './anim'
 
 const resting: Anim = { mode: 'idle', since: 0, x: 0, dir: 1, tick: 0, target: '', working: false }
@@ -100,4 +100,29 @@ test('a turn that ends mid-leap cheers once the pet lands', () => {
   expect([mid.mode, mid.working]).toEqual(['run', true])
   const landed = step(mid, quiet, LEAP_MS)
   expect([landed.mode, landed.x]).toEqual(['cheer', 45])
+})
+
+test('while its minis work, the pet walks along their desks instead of standing by', () => {
+  const waiting: Anim = { ...resting, mode: 'agent', working: true }
+  const agentCall = { ...quiet, isWorking: true, activeTools: 1, activeMode: 'agent' as const, lastToolAt: 0 }
+  expect(step(waiting, agentCall, 9000).mode).toBe('agent')
+  expect(step(waiting, { ...agentCall, workers: 2 }, 9000).mode).toBe('run')
+  // Background subagents: no tool call runs, and the pet still patrols rather than thinks.
+  expect(step({ ...waiting, mode: 'think' }, { ...quiet, isWorking: true, workers: 1 }, 9000).mode).toBe('run')
+  expect(step({ ...waiting, mode: 'read' }, { ...agentCall, activeMode: 'read', workers: 2 }, 9000).mode).toBe('read')
+})
+
+test('a held pet stays where the pointer holds it, and nothing starts in the hand', () => {
+  const leaping: Anim = { ...resting, mode: 'run', working: true, x: 4, leap: { since: 0, from: 4, to: 30 } }
+  const held = step(leaping, { ...quiet, held: 12 }, 500)
+  expect([held.x, held.mode, held.working, held.leap, held.tick]).toEqual([12, 'run', true, undefined, 1])
+  expect(carry(resting, 7).x).toBe(7)
+})
+
+test('set down or poked, the pet cheers or hops, unless a turn is running', () => {
+  expect([drop(resting, 900).mode, drop(resting, 900).since]).toEqual(['cheer', 900])
+  expect([poke(resting, 900).mode, poke(resting, 900).since]).toEqual(['jump', 900])
+  const busy: Anim = { ...resting, mode: 'read', working: true }
+  expect(drop(busy, 900)).toEqual(busy)
+  expect(poke(busy, 900)).toEqual(busy)
 })

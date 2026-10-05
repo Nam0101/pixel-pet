@@ -146,7 +146,9 @@ Options left out keep their values. The change applies after Claude Code restart
 | `hud` | `true`, `false` | The HP, MP, and ST bars below the prompt. |
 | `statusLine` | `true`, `false` | The text beside the pet. |
 | `targets` | `true`, `false` | The status line names the file, pattern, command, host, or search query. `false` suits a shared screen. |
-| `minis` | `true`, `false` | A mini behind the pet for each running subagent. |
+| `minis` | `true`, `false` | A mini at its own desk on the band for each running subagent. |
+| `contextBar` | `true`, `false` | The context window as a bar under the pet. |
+| `interactive` | `true`, `false` | Clicks and drags on the pet and the context bar. |
 
 ## Troubleshooting
 

@@ -1,5 +1,7 @@
 import { HEIGHT, canvas, hash, overlay, stamp } from './pixels'
 import type { Body, Canvas } from './pixels'
+import { drawWorkers } from './workers'
+import type { Worker } from './workers'
 
 /**
  * A theme's scene, in the pet's palette: a ground tile, a sky drawing that stays put, the obstacles a running pet
@@ -18,6 +20,8 @@ export const GROUND_H = 2 // pixels: one row of cells below the pet
 export const SCENE_SIZE = { ground: { w: 16, h: GROUND_H }, sky: { w: 16, h: 12 }, obstacle: { w: 8, h: 6 }, decor: { w: 16, h: HEIGHT }, items: 4 }
 /** The least and most columns between obstacles; the least leaves room to land a leap and take off for the next. */
 export const EVERY = { min: 30, max: 120, normal: 40 }
+/** The scene of a pet with none: an empty band, laid out and drawn like any other. */
+export const NO_SCENE: Scene = { obstacles: [], decor: [], every: EVERY.normal }
 const FIRST_OBSTACLE = 24 // columns left clear, so a pet that starts at the left edge stands clear of them
 const DECOR_EVERY = 12
 /** The fastest and slowest a raised decor drawing drifts: milliseconds per column. */
@@ -60,9 +64,10 @@ export const obstacleSpans = (layout: SceneLayout): Span[] => layout.obstacles.m
 /**
  * The band with a scene at `ms`: the sky drawing near the top right, decor, then obstacles standing on the ground, then
  * `picture` (the pet as `compose` drew it) from column `left`. Decor with a `drift` moves left and comes back in from
- * the right edge. The canvas is `layout.width` wide; its bottom GROUND_H rows hold the ground.
+ * the right edge. `workers` sit at their desks on the ground, behind the pet. The canvas is `layout.width` wide; its bottom GROUND_H
+ * rows hold the ground.
  */
-export function drawBand(body: Body, scene: Scene, layout: SceneLayout, picture: Canvas, left: number, ms: number): Canvas {
+export function drawBand(body: Body, scene: Scene, layout: SceneLayout, picture: Canvas, left: number, ms: number, workers: Worker[] = []): Canvas {
   const c = canvas(layout.width, HEIGHT + GROUND_H)
   if (scene.sky) {
     stamp(c, layout.width - widthOf(scene.sky) - SKY_AT.right, SKY_AT.top, scene.sky, body.palette)
@@ -80,6 +85,7 @@ export function drawBand(body: Body, scene: Scene, layout: SceneLayout, picture:
   for (const o of layout.obstacles) {
     stamp(c, o.x, HEIGHT - o.rows.length, o.rows, body.palette)
   }
+  drawWorkers(c, workers, body)
   if (scene.ground) {
     for (let x = 0; x < layout.width; x += widthOf(scene.ground)) {
       stamp(c, x, HEIGHT, scene.ground, body.palette)

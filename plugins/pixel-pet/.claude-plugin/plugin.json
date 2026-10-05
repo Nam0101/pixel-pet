@@ -1,12 +1,12 @@
 {
   "name": "pixel-pet",
-  "version": "0.2.0",
-  "description": "A pixel pet above the prompt that acts out each tool call, plus an HP/MP/ST HUD below it",
+  "version": "0.3.0",
+  "description": "A pixel pet above the prompt that acts out each tool call, takes clicks and drags, and stands on a bar of your context window; subagents type at desks beside it, and an HP/MP/ST HUD sits below",
   "author": {
     "name": "halluqinate"
   },
-  "homepage": "https://github.com/Namenomeaning/pixel-pet",
-  "repository": "https://github.com/Namenomeaning/pixel-pet",
+  "homepage": "https://github.com/Nam0101/pixel-pet",
+  "repository": "https://github.com/Nam0101/pixel-pet",
   "license": "MIT",
   "keywords": [
     "mod",
@@ -57,7 +57,19 @@
     "minis": {
       "type": "boolean",
       "title": "Subagent minis",
-      "description": "A mini behind the pet for each running subagent.",
+      "description": "A mini at its own desk on the band for each running subagent, which the pet walks along to check on.",
+      "default": true
+    },
+    "contextBar": {
+      "type": "boolean",
+      "title": "Context bar",
+      "description": "The context window as a bar under the pet, one color per part. Click it for the legend.",
+      "default": true
+    },
+    "interactive": {
+      "type": "boolean",
+      "title": "Clicks and drags",
+      "description": "Click the pet to poke it, drag it along the band, and point at the context bar to name its parts.",
       "default": true
     }
   }
