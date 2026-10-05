@@ -20,6 +20,10 @@ const Cells: ClientModule<Props, true> = (props, surface) => {
       if (e.type === 'down') {
         downAt = e.x
         isDragged = false
+      } else if (e.type === 'move' && downAt !== undefined && e.button === undefined) {
+        // The press ended where its `up` could not be heard, such as outside the window.
+        surface.post({ type: isDragged ? 'drop' : 'leave', x: e.x, from: downAt })
+        downAt = undefined
       } else if (e.type === 'move' && downAt !== undefined) {
         isDragged ||= e.x !== downAt
         if (isDragged) {

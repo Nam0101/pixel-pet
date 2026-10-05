@@ -40,11 +40,13 @@ export function contextFrom(u: SessionUsage): Context | undefined {
 
     return { total: breakdown.totalTokens, max, percent: Math.round((breakdown.totalTokens / max) * 100), rows }
   }
-  const percent = u.context.percent
+  const reading = u.context.percent
   const max = u.context.window
-  if (percent === undefined || !Number.isFinite(percent) || !max) {
+  if (reading === undefined || !Number.isFinite(reading) || !max) {
     return undefined
   }
+  // A reading outside 0 to 100 would give a part fewer than no cells.
+  const percent = Math.max(0, Math.min(100, reading))
   const total = Math.round((max * percent) / 100)
 
   return { total, max, percent: Math.round(percent), rows: [{ name: 'Used', tokens: total, kind: 'used' }, { name: 'Free space', tokens: max - total, kind: 'free' }] }

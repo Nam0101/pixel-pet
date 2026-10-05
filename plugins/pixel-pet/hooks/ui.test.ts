@@ -194,6 +194,11 @@ test('a drag carries the pet along the band, and a click pokes it', async ($, on
   expect(carried).toContain('"columns":25')
   await band.post({ type: 'drop', x: 30, from: 5 }, { in: 'pet' })
   expect(JSON.stringify(await band.drawn())).toContain('wheee!')
+  // A drag whose drop is lost ends at the next thing the pointer does: the pet is no longer drawn mid-air.
+  await band.post({ type: 'drag', x: 20, from: 5 }, { in: 'pet' })
+  const midAir = JSON.stringify(await band.drawn())
+  await band.post({ type: 'leave', x: 0 }, { in: 'pet' })
+  expect(JSON.stringify(await band.drawn())).not.toEqual(midAir)
   await band.post({ type: 'click', x: 2, from: 2 }, { in: 'pet' })
   expect(JSON.stringify(await band.drawn())).toContain('hehe, that tickles')
   await band.unmount()

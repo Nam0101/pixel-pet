@@ -23,6 +23,10 @@ test('the context comes from the breakdown without deferred parts, or from the p
     rows: [{ name: 'Used', tokens: 28000, kind: 'used' }, { name: 'Free space', tokens: 172000, kind: 'free' }],
   })
   expect(contextFrom(usage({ window: 200000 }))).toBeUndefined()
+  // A reading past the window still draws: the bar is full, and no part has fewer than no cells.
+  const over = contextFrom(usage({ window: 200000, percent: 120 })) as Context
+  expect([over.percent, over.rows[1]?.tokens]).toEqual([100, 0])
+  expect(barRow(over, 40).length).toBeGreaterThan(0)
 })
 
 test('the bar shares its cells by tokens: used parts full height, free space and the buffer a low track', () => {

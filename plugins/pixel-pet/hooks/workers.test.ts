@@ -26,7 +26,7 @@ test('stations run in from the right edge, one per worker, and at most six worke
 
   expect(workers.length).toEqual(6)
   expect(workers.map(w => w.x)).toEqual([105, 89, 73, 57, 41, 25])
-  expect(station(9, 20)).toEqual(0)
+  expect(station(9, 20)).toBeLessThan(0)
 })
 
 test('a seated worker gets a desk beside it; one still in the air does not', () => {
@@ -40,4 +40,13 @@ test('a seated worker gets a desk beside it; one still in the air does not', () 
 
   expect(deskTop(drawn(2000))).toEqual(0x5a5f70)
   expect(deskTop(drawn(100))).toEqual(-1)
+})
+
+test('a mini keeps the station of its slot, and one with no room on the band is not drawn', () => {
+  const typing = (slot: number) => ({ age: 5000, slot })
+  // The mini in slot 0 has left: slot 1 stays at its own station.
+  expect(workersOnBand([typing(1)], 4, 121).map(w => w.x)).toEqual([station(1, 121)])
+  // A narrow band seats as many as fit, each at a station of its own.
+  const narrow = workersOnBand([0, 1, 2, 3, 4].map(typing), 4, 59).map(w => w.x)
+  expect(narrow).toEqual([44, 28, 12])
 })

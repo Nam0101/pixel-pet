@@ -1,6 +1,6 @@
 {
   "name": "pixel-pet",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "A pixel pet above the prompt that acts out each tool call, takes clicks and drags, and stands on a bar of your context window; subagents type at desks beside it, and an HP/MP/ST HUD sits below",
   "author": {
     "name": "halluqinate"

@@ -12,7 +12,7 @@ import type { Mini } from './minis'
 import { animate, readTheme, restingFrame } from './theme'
 import { previewPage } from './preview'
 import { readSettings } from './settings'
-import { BODY_W, FACES, HEIGHT, MAX_MINIS, compose, crop, encodeCells, encodeRuns, encodeSvg } from './pixels'
+import { BODY_W, FACES, HEIGHT, MAX_MINIS, compose, crop, encodeCells, encodeRuns, encodeSvg, trailWidth } from './pixels'
 import type { Body, Run } from './pixels'
 import { GROUND_H, NO_SCENE, drawBand, layScene, obstacleSpans } from './scene'
 import type { SceneLayout } from './scene'
@@ -22,6 +22,7 @@ import { workersOnBand } from './workers'
 
 const ROWS = 10 // a cell is two pixels tall, so the frames are 20 px high
 const GROUND_ROWS = GROUND_H / 2
+const MAX_BAND_W = 512 // the most columns a Raster takes
 const STATUS_ROOM = 20 // columns kept free beside a running pet for its status line
 const USAGE_EVERY_BEATS = 20
 const AGENTS_EVERY_BEATS = 5
@@ -138,10 +139,11 @@ export const register: Register = (on, options) => {
   let heldAt: number | undefined // the column the person's pointer holds the pet at
   let petLeft = 0 // the pet's column as last drawn, which a drag is measured from
   let pokes = 0
+  let hasBand = true // the last render drew a band, where the minis sit at desks; elsewhere they trail the pet
   let pointedPart: string | undefined // the context bar's tail while the pointer is over a part
 
   // The band leaves the last column free, so a full row never wraps.
-  const bandWidth = () => Math.max(BODY_W, bodyColumns - 1)
+  const bandWidth = () => Math.max(BODY_W, Math.min(MAX_BAND_W, bodyColumns - 1))
   /** The layout of the pet's scene on the band as wide as it is now; a pet with no scene has an empty one. */
   const sceneLayout = (pet: Body) => {
     if (layout?.width !== bandWidth() || layoutOf !== pet) {
@@ -200,10 +202,11 @@ export const register: Register = (on, options) => {
         minis = await minisOr($, t, minis)
       }
 
-      // The minis work at their desks on the band, so the pet has no trail behind it.
-      const room = Math.max(0, bodyColumns - BODY_W - STATUS_ROOM)
+      // On the band the minis work at their desks, so the pet has no trail behind it.
+      const trail = hasBand ? 0 : trailWidth(minis.length)
+      const room = Math.max(0, bodyColumns - BODY_W - STATUS_ROOM - trail)
       const obstacles = body ? obstacleSpans(sceneLayout(body)) : []
-      const activity = { isWorking, activeTools, activeMode, activeTarget, lastToolAt, room, obstacles, trail: 0, held: heldAt, workers: minis.length }
+      const activity = { isWorking, activeTools, activeMode, activeTarget, lastToolAt, room, obstacles, trail, held: heldAt, workers: minis.length }
       await update($, anim, a => {
         const moved = step(a, activity, t, settings)
         // Minis type on every tick, so they keep the redraw rate up while the pet idles.
@@ -340,6 +343,11 @@ export const register: Register = (on, options) => {
 
       return {}
     }
+    if (pointer.type !== 'drag' && pointer.type !== 'drop' && heldAt !== undefined) {
+      // The drop was lost, to a later post in its frame or a press that never ended: anything else sets the pet down.
+      heldAt = undefined
+      await update($, anim, a => drop(a, now))
+    }
     if (pointer.type === 'drag') {
       // The pet follows the pointer by the cell it was picked up at.
       const to = Math.max(0, Math.min(petLeft + pointer.x - pointer.from, bandWidth() - BODY_W))
@@ -416,6 +424,7 @@ export const register: Register = (on, options) => {
       const elapsed = now - a.since
       const views = minisOnScreen(minis, now)
       const onBand = e.surface === 'terminal'
+      hasBand = onBand
       // A held pet hangs mid-jump. A leap is the run mode playing the jump clip, slowed, while the pet travels.
       const drawn =
         heldAt !== undefined

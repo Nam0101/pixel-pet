@@ -330,7 +330,7 @@ const PROPS: Partial<Record<Mode, (c: Canvas, t: number) => void>> = {
 // ---- minis: one per running subagent, in a trail behind the pet ----
 
 /** One mini as drawn: ms since its agent started, and since it ended once it has. */
-export type MiniView = { age: number; doneFor?: number; failed?: boolean }
+export type MiniView = { age: number; doneFor?: number; failed?: boolean; slot?: number }
 
 export const MAX_MINIS = 6
 const MINI_W = 6 // a 5 px mini and a 1 px gap

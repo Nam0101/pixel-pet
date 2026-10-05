@@ -2,8 +2,11 @@ import type { AgentInfo } from 'claude-code'
 
 import type { MiniView } from './pixels'
 
-/** A subagent's mini: it joins when the agent starts and leaves `LEAVE_MS` after the agent ends. */
-export type Mini = { id: string; since: number; doneAt?: number; failed?: boolean }
+/**
+ * A subagent's mini: it joins when the agent starts and leaves `LEAVE_MS` after the agent ends. `slot` is its place
+ * among the minis, kept for as long as it lives, so a mini stays at its desk when another leaves.
+ */
+export type Mini = { id: string; since: number; slot: number; doneAt?: number; failed?: boolean }
 
 const LEAVE_MS = 1500
 
@@ -25,7 +28,18 @@ export function reconcile(minis: Mini[], agents: AgentInfo[], t: number): Mini[]
     return [{ ...m, doneAt: t, failed: a !== undefined && a.status !== 'completed' }]
   })
   const known = new Set(minis.map(m => m.id))
-  const born = agents.filter(a => ALIVE.has(a.status) && !known.has(a.id)).map(a => ({ id: a.id, since: t }))
+  const taken = new Set(kept.map(m => m.slot))
+  const born = agents
+    .filter(a => ALIVE.has(a.status) && !known.has(a.id))
+    .map((a): Mini => {
+      let slot = 0
+      while (taken.has(slot)) {
+        slot += 1
+      }
+      taken.add(slot)
+
+      return { id: a.id, since: t, slot }
+    })
 
   return [...kept, ...born]
 }
@@ -34,5 +48,5 @@ export function reconcile(minis: Mini[], agents: AgentInfo[], t: number): Mini[]
 export function minisOnScreen(minis: Mini[], t: number): MiniView[] {
   return minis
     .filter(m => m.doneAt === undefined || t - m.doneAt < LEAVE_MS)
-    .map(m => ({ age: t - m.since, doneFor: m.doneAt === undefined ? undefined : t - m.doneAt, failed: m.failed }))
+    .map(m => ({ age: t - m.since, doneFor: m.doneAt === undefined ? undefined : t - m.doneAt, failed: m.failed, slot: m.slot }))
 }

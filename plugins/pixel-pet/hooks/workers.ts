@@ -25,26 +25,30 @@ export const STATION_W = DESK_AT + (DESK[0] as string).length
 const STATION_EVERY = STATION_W + 3
 const EDGE = 2 // columns kept clear at the band's right edge
 
-/** The column where worker `k` sits: stations run in from the band's right edge. */
-export const station = (k: number, width: number) => Math.max(0, width - EDGE - STATION_W - k * STATION_EVERY)
+/** The column of station `k`: stations run in from the band's right edge. Negative where the band has no room for it. */
+export const station = (k: number, width: number) => width - EDGE - STATION_W - k * STATION_EVERY
 
 /**
  * The minis as workers on a band `width` columns wide, with the pet at column `petLeft`. The pet hands each new one
  * its task: the mini flies from the pet to its station in an arc, then types at the desk there until its subagent
- * ends.
+ * ends. A mini keeps the station of its slot, and one whose station is off the band is not drawn.
  */
 export function workersOnBand(views: MiniView[], petLeft: number, width: number): Worker[] {
   const from = petLeft + Math.floor(BODY_W / 2)
 
-  return views.slice(0, MAX_MINIS).map((view, k) => {
+  return views.flatMap((view, at): Worker[] => {
+    const k = view.slot ?? at
     const to = station(k, width)
+    if (k >= MAX_MINIS || to < 0) {
+      return []
+    }
     if (view.age >= THROW_MS) {
       // A finished mini leaves with its own hop; a working one bobs as it types.
-      return view.doneFor === undefined ? { x: to, k, view, lift: Math.floor(view.age / TYPE_MS) % 2, isSeated: true } : { x: to, k, view, isSeated: true }
+      return [view.doneFor === undefined ? { x: to, k, view, lift: Math.floor(view.age / TYPE_MS) % 2, isSeated: true } : { x: to, k, view, isSeated: true }]
     }
     const p = Math.max(0, view.age) / THROW_MS
 
-    return { x: Math.round(from + (to - from) * p), k, view, lift: Math.round(Math.sin(p * Math.PI) * THROW_H), isSeated: false }
+    return [{ x: Math.round(from + (to - from) * p), k, view, lift: Math.round(Math.sin(p * Math.PI) * THROW_H), isSeated: false }]
   })
 }
 
